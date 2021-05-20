@@ -52,3 +52,5 @@ docs/_build/
 pyvenv.cfg
 
 flyem_token.json
+
+.DS_store
