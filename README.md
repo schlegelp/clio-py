@@ -7,11 +7,12 @@ $ pip3 install git+git://github.com/schlegelp/clio-py@main
 
 ## Token
 To access Clio programmatically you need an API token. Currently, Clio tokens
-expire after a week. You have three options to get and set your token:
+expire after a week. You have three options to get and set your token
+(in increasing order of convenience):
 
 ### Option 1
-Get your token from the Clio website (go to settings) and provide it when
-you instantiate a client:
+Get your token from the Clio website (go to settings in the top right and copy
+the "ClioStore Token") and provide it whenever you instantiate a client:
 
 ```Python
 >>> import clio
@@ -25,7 +26,7 @@ and you need to get a new one:
 
 ```Python
 >>> import clio
->>> clio.set_token("eyJhb.....")
+>>> clio.set_token("eyJhb.....")  # this is a one-off until token expires!
 >>> client = clio.Client(dataset='VNC')
 ```
 
