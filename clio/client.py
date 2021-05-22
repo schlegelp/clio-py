@@ -3,7 +3,10 @@ Client to interact with a Clio backend.
 """
 
 import os
+import jwt
+import json
 import copy
+import time
 import inspect
 import logging
 import functools
@@ -18,6 +21,8 @@ from urllib3.exceptions import InsecureRequestWarning
 import urllib.parse as urlparse
 from urllib.parse import urlencode
 
+from pathlib import Path
+
 from requests import Session
 from requests.adapters import HTTPAdapter
 
@@ -29,6 +34,8 @@ import ujson
 logger = logging.getLogger(__name__)
 DEFAULT_CLIO_CLIENT = None
 CLIO_CLIENTS = {}
+CLIO_TOKEN_FILE = '~/clio_token.json'
+CLIO_TOKEN_URL = 'https://clio-store-vwzoicitea-uk.a.run.app/v2/server/token'
 
 
 def default_client():
@@ -108,6 +115,65 @@ def inject_client(f):
     return wrapper
 
 
+def set_token(token):
+    f"""Save Clio API token to {CLIO_TOKEN_FILE}.
+
+    Parameters
+    ----------
+    token :     str
+                Your Clio API token. Get it from the "settings" menu in the
+                top right corner of the Clio website.
+
+    """
+    if not isinstance(token, str):
+        raise TypeError(f'Token must be string, got "{type(token)}"')
+
+    p = Path(CLIO_TOKEN_FILE).expanduser()
+    with open(p, 'w') as f:
+        json.dump({'token': token}, f)
+
+
+def load_token():
+    """Load Clio token from file."""
+    p = Path(CLIO_TOKEN_FILE).expanduser()
+    if not p.is_file():
+        raise FileNotFoundError('Clio secret file not found. Please use '
+                                '`clio.set_token` to save a token.')
+
+    with open(p, 'r') as f:
+        token = json.load(f)
+
+    return token['token']
+
+
+def get_token_glcoud(google_identify_token=None, save=True):
+    """Try using GCloud to automatically get a Clio token."""
+    # If not provided try using gcloud
+    if not google_identify_token:
+        google_identify_token = os.popen("gcloud auth print-identity-token").read()
+
+    # Some clean-up
+    google_identify_token = google_identify_token.strip()
+
+    # If still no token
+    if not google_identify_token:
+        raise ValueError('Unable to automatically refresh Clio token. Make '
+                         'sure `gcloud` is installed and properly configured.')
+
+    # Fetch a new Clio token
+    r = requests.post(CLIO_TOKEN_URL,
+                      headers={'Authorization': f'Bearer {google_identify_token}'})
+    if r.status_code != 200:
+        raise ValueError(f"Unable to retrieve long-lived Clio token: {r.text}")
+
+    token = r.text.strip('"')
+
+    if save:
+        _ = set_token(token)
+
+    return token
+
+
 class Client:
     def __init__(self, server='https://clio-store-vwzoicitea-uk.a.run.app',
                  dataset=None, token=None, verify=True):
@@ -132,23 +198,30 @@ class Client:
                 If ``True`` (default), enforce signed credentials.
 
             dataset:
-                The dataset to run all queries against, e.g. 'hemibrain'.
+                The dataset to run all queries against, e.g. 'VNC'.
                 If not provided, the server will use a default dataset for
                 all queries.
         """
+        # If no token
         if not token:
-            token = os.environ.get('CLIO_APPLICATION_CREDENTIALS')
+            try:
+                # Try loading from file
+                token = load_token()
+            except FileNotFoundError:
+                # If loading from file didn't work, try through refreshing
+                token = get_token_glcoud()
+            except BaseException:
+                raise
 
-        if not token:
-            raise RuntimeError("No token provided. Please provide one or set CLIO_APPLICATION_CREDENTIALS")
-
+        # Some token clean-up
         if ':' in token:
             try:
                 token = ujson.loads(token)['token']
             except Exception:
                 raise RuntimeError("Did not understand token. Please provide the entire JSON document or (only) the complete token string")
 
-        token = token.replace('"', '')
+        # Don't set token directly since that triggers a validation
+        self.token = token.replace('"', '')
 
         if '://' not in server:
             server = 'https://' + server
@@ -165,7 +238,7 @@ class Client:
         self.server = server
 
         self.session = Session()
-        self.session.headers.update({"Authorization": "Bearer " + token,
+        self.session.headers.update({"Authorization": "Bearer " + self.token,
                                      "Content-type": "application/json"})
 
         # If the connection fails, retry a couple times.
@@ -202,6 +275,22 @@ class Client:
         s += ")"
         return s
 
+    @property
+    def token(self):
+        return self._token
+
+    @token.setter
+    def token(self, token):
+        # Make sure token is principally valid
+        self._validate_token(token)
+
+        # Set token
+        self._token = token
+
+        # Update session header
+        if hasattr(self, 'session'):
+            self.session.headers['Authorization'] = "Bearer " + self._token
+
     def _add_identifier(self, url):
         """Add identifier to URL."""
         url_parts = list(urlparse.urlparse(url))
@@ -227,7 +316,39 @@ class Client:
             url += '?{}'.format(urllib.parse.urlencode(GET))
         return url
 
+    def refresh_token(self, *args, **kwargs):
+        """Try refreshing Clio token. Requires glcoud."""
+        self.token = get_token_glcoud(*args, **kwargs)
+        print('Clio token successfully refreshed.')
+
+    def token_time_left(self):
+        """Time left before token expires [s]."""
+        decoded = jwt.decode(self.token, algorithms=['HS256'],
+                             options={"verify_signature": False})
+
+        return int(decoded['exp']) - int(time.time())
+
+    def _validate_token(self, token=None):
+        """Check token."""
+        if not token:
+            token = self.token
+
+        try:
+            decoded = jwt.decode(token, algorithms=['HS256'],
+                                 options={"verify_signature": False})
+        except jwt.DecodeError:
+            raise ValueError("Clio token not valid: unable to decode.")
+
+        for field in ['email', 'exp']:
+            if field not in decoded:
+                raise ValueError(f"Clio token doesn't have {field} field and "
+                                 f"is therefore invalid: {decoded}")
+
     def _fetch(self, url, json=None, ispost=False, identify=True):
+        if self.token_time_left() < 0:
+            print('Clio token expired. Attempting refresh...')
+            self.refresh_token()
+
         # Make sure URL has identifier
         if identify:
             url = self._add_identifier(url)
