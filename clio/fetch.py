@@ -9,6 +9,8 @@ __all__ = ['fetch_annotations', 'fetch_group_annotations']
 def fetch_annotations(bodyid=None, *, client=None, **kwargs):
     """Fetch annotations for given body ID(s).
 
+    If no limiting criteria are given will return all available annotations.
+
     Parameters
     ----------
     bodyId :    int | list thereof
@@ -42,7 +44,8 @@ def fetch_annotations(bodyid=None, *, client=None, **kwargs):
 
     """
     if not bodyid and not kwargs:
-        raise ValueError('`bodyid` and `custom` must not both be None')
+        url = client.make_url('v2/json-annotations/', client.dataset, 'neurons/all')
+        return client._fetch_pandas(url, ispost=False)
 
     url = client.make_url('v2/json-annotations/', client.dataset, 'neurons/query')
 
