@@ -7,7 +7,7 @@ from .client import inject_client
 CLIO_TEST_STORE = 'https://clio-test-7fdj77ed7q-uk.a.run.app'
 
 @inject_client
-def annotate_bodyids(annotations, test=True, client=None):
+def annotate_bodyids(annotations, test=True, *, client=None):
     """Annotate bodyIDs.
 
     If no limiting criteria are given will return all available annotations.
@@ -38,8 +38,9 @@ def annotate_bodyids(annotations, test=True, client=None):
         raise ValueError("annotations DataFrame must contain a `bodyid` column")
     url_template = f"v2/json-annotations/{client.dataset}/neurons"
     url = client.make_url(url_template)
-    status = client._fetch(url, json=annotations.to_json(orient='records'), ispost=True)
+    status = client._fetch(url, json=annotations.to_dict(orient='records'), ispost=True)
     if test: client.server = prev_store
-    return status
+    if status.ok:
+        print("Bodyids annotated successfully.")
 
 
