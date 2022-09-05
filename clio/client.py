@@ -37,7 +37,6 @@ CLIO_CLIENTS = {}
 CLIO_TOKEN_FILE = '~/clio_token.json'
 CLIO_TOKEN_URL = 'https://clio-store-vwzoicitea-uk.a.run.app/v2/server/token'
 
-
 def default_client():
     """
     Obtain the default Client object to use.
