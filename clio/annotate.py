@@ -17,8 +17,9 @@ def annotate_bodyids(annotations, test=True, *, client=None):
     annotations : pd.DataFrame
                 DataFrame with bodyid annotations, must have a `bodyid` column.
 
-    test : bool
-                Whether to send annotations to test or production server.
+    test        : bool
+                Whether to send annotations to test (True) or production (False) server.
+                Set to False only if you know what you are doing.
 
     Examples
     --------
