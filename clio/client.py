@@ -36,6 +36,7 @@ DEFAULT_CLIO_CLIENT = None
 CLIO_CLIENTS = {}
 CLIO_TOKEN_FILE = '~/clio_token.json'
 CLIO_TOKEN_URL = 'https://clio-store-vwzoicitea-uk.a.run.app/v2/server/token'
+CLIO_TEST_STORE = 'https://clio-test-7fdj77ed7q-uk.a.run.app'
 
 
 def default_client():
@@ -96,9 +97,9 @@ def inject_client(f):
     one herself.
 
     In typical usage the user will create one Client object,
-    and use it with every neuprint function.
+    and use it with every clio-py function.
     Rather than requiring the user to pass the the client
-    to every neuprint call, this decorator automatically
+    to every clio-py call, this decorator automatically
     passes the default (global) Client.
     """
     argspec = inspect.getfullargspec(f)
@@ -186,13 +187,12 @@ class Client:
 
         Args:
             server:
-                URL of neuprintHttp server
-
+                URL of Clio server.
             token:
                 Clio token. Either pass explitily as an argument or set
                 as ``CLIO_APPLICATION_CREDENTIALS`` environment variable.
                 Your token can be retrieved by clicking on your account in
-                the NeuPrint web interface.
+                the Clio web interface.
 
             verify:
                 If ``True`` (default), enforce signed credentials.
@@ -291,6 +291,10 @@ class Client:
         if hasattr(self, 'session'):
             self.session.headers['Authorization'] = "Bearer " + self._token
 
+    @property
+    def head_version(self):
+        return self._fetch_json(f"{self.server}/v2/json-annotations/{self.dataset}/neurons/head_tag")
+
     def _add_identifier(self, url):
         """Add identifier to URL."""
         url_parts = list(urlparse.urlparse(url))
@@ -303,10 +307,13 @@ class Client:
 
         return urlparse.urlunparse(url_parts)
 
-    def make_url(self, *args, **GET):
+    def make_url(self, *args, test=False, **GET):
         """Generates URL."""
         # Generate the URL
-        url = self.server
+        if not test:
+            url = self.server
+        else:
+            url = CLIO_TEST_STORE
         for arg in args:
             arg_str = str(arg)
             joiner = '' if url.endswith('/') else '/'
@@ -392,3 +399,9 @@ class Client:
         including your access level and group.
         """
         return self._fetch_json(f"{self.server}/v2/roles")
+
+    def fetch_fields(self):
+        return self._fetch_json(f"{self.server}/v2/json-annotations/{self.dataset}/neurons/fields")
+
+    def fetch_versions(self):
+        return self._fetch_json(f"{self.server}/v2/json-annotations/{self.dataset}/neurons/head_tag")
