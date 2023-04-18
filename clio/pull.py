@@ -6,7 +6,8 @@ __all__ = ['fetch_annotations', 'fetch_group_annotations']
 
 
 @inject_client
-def fetch_annotations(bodyid=None, *, client=None, **kwargs):
+def fetch_annotations(bodyid=None, *, version=None, show_extra=None,
+                      client=None, **kwargs):
     """Fetch annotations for given body ID(s).
 
     If no limiting criteria are given will return all available annotations.
@@ -15,6 +16,10 @@ def fetch_annotations(bodyid=None, *, client=None, **kwargs):
     ----------
     bodyId :    int | list thereof
                 Body ID(s).
+    version :   str, optional
+                Version string, e.g. "v0.3.5" to fetch annotations for.
+    show_extra : None | "user" | |time" | "all"
+                Whether to also pull "_user" or "_time" fields or both.
     **kwargs
                 Keyword arguments can be used to provide (additional) filters.
                 See examples.
@@ -46,12 +51,19 @@ def fetch_annotations(bodyid=None, *, client=None, **kwargs):
     >>> clio.fetch_annotations(_class='Local interneuron')
 
     """
+    assert show_extra in (None, "user", "time", "all")
+    GET = {}
+    if version is not None:
+        GET['version'] = version
+    if show_extra is not None:
+        GET['show'] = show_extra
+
     # If no filters, fetch all available annotations
     if isinstance(bodyid, type(None)) and not kwargs:
-        url = client.make_url('v2/json-annotations/', client.dataset, 'neurons/all')
+        url = client.make_url('v2/json-annotations/', client.dataset, 'neurons/all', **GET)
         return client._fetch_pandas(url, ispost=False)
 
-    url = client.make_url('v2/json-annotations/', client.dataset, 'neurons/query')
+    url = client.make_url('v2/json-annotations/', client.dataset, 'neurons/query',  **GET)
 
     query = kwargs
     # Strip leading underscores (for e.g. "_class")
@@ -61,10 +73,9 @@ def fetch_annotations(bodyid=None, *, client=None, **kwargs):
             query[k[1:]] = v
 
     if not isinstance(bodyid, type(None)):
-        if isinstance(bodyid, (list, set, np.ndarray)):
-            bodyid = list(bodyid)
-        else:
+        if isinstance(bodyid, (str, int)):
             bodyid = [bodyid]
+        bodyid = np.unique(np.asarray(bodyid).astype(int)).tolist()
         query['bodyid'] = bodyid
 
     return client._fetch_pandas(url, json=query, ispost=True)
