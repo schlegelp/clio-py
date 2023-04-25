@@ -293,7 +293,24 @@ class Client:
 
     @property
     def head_version(self):
-        return self._fetch_json(f"{self.server}/v2/json-annotations/{self.dataset}/neurons/head_tag")
+        """Head version."""
+        if not getattr(self, '_head_version', None):
+            self._head_version = self._fetch_json(f"{self.server}/v2/json-annotations/{self.dataset}/neurons/head_tag")
+        return self._head_version
+
+    @property
+    def head_uuid(self):
+        """Head node UUID."""
+        if not getattr(self, '_head_uuid', None):
+            self._head_uuid =  self._fetch_json(f"{self.server}/v2/json-annotations/{self.dataset}/neurons/head_uuid")
+        return self._head_uuid
+
+    @property
+    def meta(self):
+        """Meta data for this dataset."""
+        if not getattr(self, '_meta', None):
+            self._meta =  self._fetch_json(f"{self.server}/v2/datasets")[self.dataset]
+        return self._meta
 
     def _add_identifier(self, url):
         """Add identifier to URL."""
