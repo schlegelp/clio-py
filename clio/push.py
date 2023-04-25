@@ -3,8 +3,10 @@ import requests
 import numpy as np
 import pandas as pd
 
+from tqdm.auto import tqdm
+
 from .client import inject_client
-from .pull import fetch_annotations
+from .pull import fetch_annotations, ids_exist
 
 __all__ = ['set_annotations',]
 
@@ -50,10 +52,11 @@ def set_annotations(x, *, test=False, version=None, write_empty_fields=False,
     chunksize : int
                 Number of annotations uploaded in one go.
 
-
-    Examples
-    --------
-
+    Notes
+    -----
+    1. On the backend annotations are only written if the submitted value is
+       different from the old. That also means that the {field}_user is not
+       updated unless there is a new value.
 
     """
     if isinstance(protect, str):
@@ -62,6 +65,14 @@ def set_annotations(x, *, test=False, version=None, write_empty_fields=False,
     if not isinstance(protect, (bool, tuple, list)):
         raise TypeError('Expected `protect` to be a boolean, a string or a list '
                         f' thereof. Got "{type(protect)}"')
+
+    if isinstance(x, dict):
+        if not (all([isinstance(k, int) for k in x.keys()]) and
+                all([isinstance(v, dict) for v in x.values()])):
+            raise ValueError('If `x` is dictionary it must be `{bodyid: {field: value}}`')
+        x = pd.DataFrame.from_dict(x, orient='index')
+        x.index.name = 'bodyid'
+        x.reset_index(drop=False, inplace=True)
 
     _validate_schema(x, client)
 
@@ -79,6 +90,13 @@ def set_annotations(x, *, test=False, version=None, write_empty_fields=False,
     # Drop empty entries
     if not write_empty_fields:
         an = [{k: v for k, v in at.items() if not pd.isnull(v)} for at in an]
+
+    # Check if any of the body IDs do not exists
+    exists = ids_exist(x.bodyid.values.tolist(), client=client)
+    if any(~exists):
+        raise ValueError('The following body IDs do not appear to exist in the '
+                         f'head node {client.head_uuid}: '
+                         ', '.join(an.bodyid.values[~exists].astype(str)))
 
     # See if we need to protect any fields
     if protect is not False:
@@ -106,11 +124,12 @@ def set_annotations(x, *, test=False, version=None, write_empty_fields=False,
     url = client.make_url('v2/json-annotations/', client.dataset, f'neurons?{version}',
                           test=test)
 
-    for i in range(0, len(an), chunksize):
-        r = client._fetch(url, json=an[i:i+chunksize], ispost=True)
-        r.raise_for_status()
-
-    print("Bodies successfully annotated.")
+    with tqdm(total=len(an), desc='Writing annotations', leave=False) as pbar:
+        for i in range(0, len(an), chunksize):
+            chunk = an[i:i+chunksize]
+            r = client._fetch(url, json=chunk, ispost=True)
+            r.raise_for_status()
+            pbar.update(len(chunk))
 
     return
 
