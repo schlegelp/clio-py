@@ -96,7 +96,7 @@ def set_annotations(x, *, test=False, version=None, write_empty_fields=False,
     if any(~exists):
         raise ValueError('The following body IDs do not appear to exist in the '
                          f'head node {client.head_uuid}: '
-                         ', '.join(an.bodyid.values[~exists].astype(str)))
+                         f'{", ".join(x.bodyid.values[~exists].astype(str))}')
 
     # See if we need to protect any fields
     if protect is not False:
