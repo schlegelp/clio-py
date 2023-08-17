@@ -2,7 +2,7 @@
 
 ## Install
 ```bash
-$ pip3 install git+git://github.com/schlegelp/clio-py@main
+$ pip3 install git+https://github.com/schlegelp/clio-py@main
 ```
 
 ## Token
