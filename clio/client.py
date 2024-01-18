@@ -186,21 +186,21 @@ class Client:
         if you don't explicitly specify one.
 
         Args:
-            server:
+            server:     str
                 URL of Clio server.
-            token:
+            token:      str
                 Clio token. Either pass explitily as an argument or set
                 as ``CLIO_APPLICATION_CREDENTIALS`` environment variable.
                 Your token can be retrieved by clicking on your account in
                 the Clio web interface.
 
-            verify:
+            verify:     bool
                 If ``True`` (default), enforce signed credentials.
 
-            dataset:
+            dataset:    str
                 The dataset to run all queries against, e.g. 'VNC'.
-                If not provided, the server will use a default dataset for
-                all queries.
+                If not provided, the server prints a list of available
+                datasets and exits.
         """
         # If no token
         if not token:

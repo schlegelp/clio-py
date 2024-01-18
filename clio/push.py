@@ -31,7 +31,7 @@ def set_annotations(x, *, test=False, version=None, write_empty_fields=False,
                 Optional clio version to associate with this annotation. The
                 default NULL uses the current head version returned by the API.
     write_empty_fields : bool
-                When x is a data.frame, this controls whether empty fields in
+                When x is a data frame, this controls whether empty fields in
                 `x` (i.e. NA or "") overwrite fields in the clio-store database
                 (when they are not protected by the protect argument). The
                 (conservative) default `write_empty_fields=False` does not
