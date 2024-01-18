@@ -258,6 +258,8 @@ class Client:
             logger.info(f"Initializing clio.Client with dataset: {self.dataset}")
         elif dataset in all_datasets:
             self.dataset = dataset
+        elif dataset is None:
+            raise RuntimeError(f"Please specify a dataset from the following list: {all_datasets}")
         else:
             raise RuntimeError(f"Dataset '{dataset}' does not exist on"
                                f" the clio server ({self.server}).\n"
