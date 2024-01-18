@@ -106,7 +106,7 @@ a senior person/postdoc before writing to _any_ field.
 ```
 
 ```python
->>> # Altenatively, use a dataframe dictionary to update fields
+>>> # Alternatively, use a dataframe dictionary to update fields
 >>> import pandas as pd
 >>> new_ann = pd.DataFrame([[154109, "LHS", "ascending neuron"]],
 ...                         columns=["bodyid", "soma_side", "class"])
