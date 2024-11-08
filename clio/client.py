@@ -22,6 +22,7 @@ import urllib.parse as urlparse
 from urllib.parse import urlencode
 
 from pathlib import Path
+from functools import lru_cache
 
 from requests import Session
 from requests.adapters import HTTPAdapter
@@ -401,7 +402,7 @@ class Client:
     ##
     ## DB-META
     ##
-
+    @lru_cache
     def fetch_datasets(self):
         """
         Fetch basic information about the available datasets on the server.
@@ -411,7 +412,7 @@ class Client:
     ##
     ## USER
     ##
-
+    @lru_cache
     def fetch_roles(self):
         """
         Fetch basic information about your user profile,
@@ -419,8 +420,29 @@ class Client:
         """
         return self._fetch_json(f"{self.server}/v2/roles")
 
+    ##
+    ## Dataset
+    ##
+    @lru_cache
     def fetch_fields(self):
         return self._fetch_json(f"{self.server}/v2/json-annotations/{self.dataset}/neurons/fields")
 
+    @lru_cache
     def fetch_versions(self):
+        return self._fetch_json(f"{self.server}/v2/json-annotations/{self.dataset}/neurons/versions")
+
+    @lru_cache
+    def fetch_head_tag(self):
         return self._fetch_json(f"{self.server}/v2/json-annotations/{self.dataset}/neurons/head_tag")
+
+    @lru_cache
+    def fetch_head_uuid(self):
+        return self._fetch_json(f"{self.server}/v2/json-annotations/{self.dataset}/neurons/head_uuid")
+
+    @lru_cache
+    def tag_to_uuid(self, tag):
+        return self._fetch_json(f"{self.server}/v2/json-annotations/{self.dataset}/neurons/tag_to_uuid/{tag}")
+
+    @lru_cache
+    def uuid_to_tag(self, uuid):
+        return self._fetch_json(f"{self.server}/v2/json-annotations/{self.dataset}/neurons/uuid_to_tag/{uuid}")
