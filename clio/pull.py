@@ -62,7 +62,7 @@ def fetch_annotations(bodyid=None, *, version=None, show_extra=None,
         GET['show'] = show_extra
 
     # If no filters, fetch all available annotations
-    if isinstance(bodyid, type(None)) and not kwargs:
+    if isinstance(bodyid, type(None)) and not kwargs and not version:
         url = client.make_url('v2/json-annotations/', client.dataset, 'neurons/all', **GET)
         return client._fetch_pandas(url, ispost=False)
 
