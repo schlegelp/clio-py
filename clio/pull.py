@@ -50,8 +50,9 @@ def fetch_annotations(bodyid=None, *, version=None, show_extra=None,
     Fetch annotations by user
     >>> clio.fetch_annotations(user='janedoe@gmail.com')
 
-    Fetch annotations by neuron class (note the '_class' parameter)
-    >>> clio.fetch_annotations(_class='Local interneuron')
+    Fetch annotations by neuron class
+    N.B. we use 'class_' to avoid clashing with Python's `class` symbol
+    >>> clio.fetch_annotations(class_='Local interneuron')
 
     """
     assert show_extra in (None, "user", "time", "all")
@@ -69,11 +70,14 @@ def fetch_annotations(bodyid=None, *, version=None, show_extra=None,
     url = client.make_url('v2/json-annotations/', client.dataset, 'neurons/query',  **GET)
 
     query = kwargs
-    # Strip leading underscores (for e.g. "_class")
+    # Strip leading or trailing underscores (for e.g. "_class")
     for k, v in query.items():
-        if k.startswith('_'):
+        if k.startswith("_"):
             query.pop(k)
             query[k[1:]] = v
+        elif k.endswith("_"):
+            query.pop(k)
+            query[k[:-1]] = v
 
     if not isinstance(bodyid, type(None)):
         if isinstance(bodyid, (str, int)):
