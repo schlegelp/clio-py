@@ -1,16 +1,25 @@
-import numpy as np
+import requests
+import urllib.parse
+
 import dvid as dv
+import numpy as np
+import pandas as pd
 
 from functools import lru_cache
 
 from .client import inject_client
 
-__all__ = ['fetch_annotations', 'fetch_group_annotations', 'ids_exist']
+__all__ = [
+    "fetch_annotations",
+    "fetch_group_annotations",
+    "ids_exist",
+]
 
 
 @inject_client
-def fetch_annotations(bodyid=None, *, version=None, show_extra=None,
-                      client=None, **kwargs):
+def fetch_annotations(
+    bodyid=None, *, version=None, show_extra=None, client=None, **kwargs
+):
     """Fetch annotations for given body ID(s).
 
     If no limiting criteria are given will return all available annotations.
@@ -58,16 +67,17 @@ def fetch_annotations(bodyid=None, *, version=None, show_extra=None,
     assert show_extra in (None, "user", "time", "all")
     GET = {}
     if version is not None:
-        GET['version'] = version
+        GET["version"] = version
     if show_extra is not None:
-        GET['show'] = show_extra
+        GET["show"] = show_extra
 
-    # If no filters, fetch all available annotations
+    # If no filters, fetch all available annotations straight from dvid
     if isinstance(bodyid, type(None)) and not kwargs and not version:
-        url = client.make_url('v2/json-annotations/', client.dataset, 'neurons/all', **GET)
-        return client._fetch_pandas(url, ispost=False)
+        return _fetch_all_annotations(GET, client=client)
 
-    url = client.make_url('v2/json-annotations/', client.dataset, 'neurons/query',  **GET)
+    url = client.make_url(
+        "v2/json-annotations/", client.dataset, "neurons/query", **GET
+    )
 
     query = kwargs
     # Strip leading or trailing underscores (for e.g. "_class")
@@ -83,7 +93,7 @@ def fetch_annotations(bodyid=None, *, version=None, show_extra=None,
         if isinstance(bodyid, (str, int)):
             bodyid = [bodyid]
         bodyid = np.unique(np.asarray(bodyid).astype(int)).tolist()
-        query['bodyid'] = bodyid
+        query["bodyid"] = bodyid
 
     an = client._fetch_pandas(url, json=query, ispost=True)
 
@@ -93,11 +103,37 @@ def fetch_annotations(bodyid=None, *, version=None, show_extra=None,
             # Check if any of the body IDs do not exists
             exists = ids_exist(np.array(bodyid)[miss], client=client)
             if any(~exists):
-                print('The following body IDs do not appear to exist in the '
-                      f'head node {client.head_uuid}: ')
-                print(', '.join(np.array(bodyid)[miss][~exists].astype(str)))
+                print(
+                    "The following body IDs do not appear to exist in the "
+                    f"head node {client.head_uuid}: "
+                )
+                print(", ".join(np.array(bodyid)[miss][~exists].astype(str)))
 
     return an
+
+
+def _fetch_all_annotations(GET, client):
+    """Fetch all annotations going straight to the DVID server.
+
+    Parameters
+    ----------
+    GET :       dict
+                Dictionary of GET parameters.
+    client :    clio.Client
+
+    Returns
+    -------
+    annotations :   pandas.DataFrame
+
+    """
+    url = client.meta["dvid"] + "/api/node/:master/segmentation_annotations/all"
+
+    if GET:
+        url += "?{}".format(urllib.parse.urlencode(GET))
+
+    r = requests.get(url)
+    r.raise_for_status()
+    return pd.DataFrame.from_records(r.json())
 
 
 @inject_client
@@ -120,9 +156,9 @@ def fetch_group_annotations(group, *, client=None):
 
     """
     if group:
-        url = client.make_url('v2/annotations/', client.dataset, groups=group)
+        url = client.make_url("v2/annotations/", client.dataset, groups=group)
     else:
-        url = client.make_url('v2/annotations/', client.dataset)
+        url = client.make_url("v2/annotations/", client.dataset)
     return client._fetch_pandas(url)
 
 
@@ -154,12 +190,17 @@ def ids_exist(bodyid, *, client=None):
     exists[np.isin(bodyid, _annotated_bodies(client=client))] = True
 
     if any(~exists):
-        exists[dv.ids_exist(bodyid,
-                            progress=False,
-                            server=client.meta['dvid'],
-                            node=client.head_uuid)] = True
+        exists[
+            dv.ids_exist(
+                bodyid,
+                progress=False,
+                server=client.meta["dvid"],
+                node=client.head_uuid,
+            )
+        ] = True
 
     return exists
+
 
 @lru_cache
 @inject_client
