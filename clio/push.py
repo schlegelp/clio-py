@@ -31,6 +31,7 @@ def set_fields(
     protect=("user",),
     validate=True,
     chunksize=50,
+    progress=True,
     client=None,
     **fields,
 ):
@@ -69,6 +70,8 @@ def set_fields(
                 checked and the annotations will be sent as is.
     chunksize : int
                 Number of annotations uploaded in one go.
+    progress :  bool
+                Whether to show a progress bar for the upload. Defaults to True.
 
     Notes
     -----
@@ -111,6 +114,7 @@ def set_fields(
         chunksize=chunksize,
         client=client,
         write_empty_fields=True,
+        progress=progress,
     )
 
 
@@ -124,6 +128,7 @@ def set_annotations(
     protect=("user",),
     validate=True,
     chunksize=50,
+    progress=True,
     client=None,
 ):
     """Set annotations for given body ID(s).
@@ -160,6 +165,8 @@ def set_annotations(
                 checked and the annotations will be sent as is.
     chunksize : int
                 Number of annotations uploaded in one go.
+    progress :  bool
+                Whether to show a progress bar for the upload. Defaults to True.
 
     Notes
     -----
@@ -213,7 +220,7 @@ def set_annotations(
         raise ValueError(
             "The following body IDs do not appear to exist in the "
             f"head node {client.head_uuid}: "
-            f'{", ".join(x.bodyid.values[~exists].astype(str))}'
+            f"{', '.join(x.bodyid.values[~exists].astype(str))}"
         )
 
     # See if we need to protect any fields
@@ -253,7 +260,9 @@ def set_annotations(
         "v2/json-annotations/", client.dataset, f"neurons?{version}", test=test
     )
 
-    with tqdm(total=len(an), desc="Writing annotations", leave=False) as pbar:
+    with tqdm(
+        total=len(an), desc="Writing annotations", leave=False, disable=not progress
+    ) as pbar:
         for i in range(0, len(an), chunksize):
             chunk = an[i : i + chunksize]
             r = client._fetch(url, json=chunk, ispost=True)
@@ -305,8 +314,8 @@ def _validate_schema(x, client):
                 specs["type"] = specs["type"][0]
             else:
                 raise ValueError(
-                    'Unexpected list of accepted types for '
-                    f'column {col}: {specs["type"]}'
+                    "Unexpected list of accepted types for "
+                    f"column {col}: {specs['type']}"
                 )
         else:
             nullable = specs["type"] == "null"
@@ -316,7 +325,7 @@ def _validate_schema(x, client):
 
             # Note: pandas will use `object` as datatype for integer columns if they
             # also contain `None`.
-            if x[col].dtype.kind == 'O':
+            if x[col].dtype.kind == "O":
                 if not nullable and x[col].isnull().any():
                     raise ValueError(
                         f'Column "{col}" is not allowed to contain null values.'
@@ -339,6 +348,4 @@ def _validate_schema(x, client):
     fields = client.fetch_fields()
     wrong = x.columns[~np.isin(x.columns, fields)]
     if any(wrong):
-        raise ValueError(
-            "The following columns appear to be invalid " f"fields: {wrong}"
-        )
+        raise ValueError(f"The following columns appear to be invalid fields: {wrong}")
