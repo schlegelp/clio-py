@@ -212,4 +212,8 @@ def ids_exist(bodyid, *, client=None):
 @inject_client
 def _annotated_bodies(*, client=None):
     """Get IDs of currently annotated bodies."""
-    return fetch_annotations().bodyid.values
+    url = client.meta["dvid"] + "/api/node/:master/segmentation_annotations/keys"
+    r = requests.get(url)
+    r.raise_for_status()
+    return np.array(r.json()).astype(int)
+
