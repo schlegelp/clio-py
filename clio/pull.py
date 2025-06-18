@@ -66,14 +66,15 @@ def fetch_annotations(
     """
     assert show_extra in (None, "user", "time", "all")
     GET = {}
-    if version is not None:
-        GET["version"] = version
     if show_extra is not None:
         GET["show"] = show_extra
 
     # If no filters, fetch all available annotations straight from dvid
-    if isinstance(bodyid, type(None)) and not kwargs and not version:
-        return _fetch_all_annotations(GET, client=client)
+    if isinstance(bodyid, type(None)) and not kwargs:
+        return _fetch_all_annotations(GET, version=version, client=client)
+
+    if version is not None:
+        GET["version"] = version
 
     url = client.make_url(
         "v2/json-annotations/", client.dataset, "neurons/query", **GET
@@ -112,7 +113,7 @@ def fetch_annotations(
     return an
 
 
-def _fetch_all_annotations(GET, client):
+def _fetch_all_annotations(GET, version, client):
     """Fetch all annotations going straight to the DVID server.
 
     Parameters
@@ -126,7 +127,12 @@ def _fetch_all_annotations(GET, client):
     annotations :   pandas.DataFrame
 
     """
-    url = client.meta["dvid"] + "/api/node/:master/segmentation_annotations/all"
+    if version is None:
+        node = ":master"
+    else:
+        node = client.fetch_versions()[version]
+
+    url = client.meta["dvid"] + f"/api/node/{node}/segmentation_annotations/all"
 
     if GET:
         url += "?{}".format(urllib.parse.urlencode(GET))
