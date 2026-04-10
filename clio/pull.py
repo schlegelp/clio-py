@@ -99,7 +99,11 @@ def fetch_annotations(
     an = client._fetch_pandas(url, json=query, ispost=True)
 
     if not isinstance(bodyid, type(None)):
-        miss = ~np.isin(bodyid, an.bodyid)
+        if not an.empty:
+            miss = ~np.isin(bodyid, an.bodyid)
+        else:
+            miss = np.ones(len(bodyid), dtype=bool)
+
         if any(miss):
             # Check if any of the body IDs do not exists
             exists = ids_exist(np.array(bodyid)[miss], client=client)
