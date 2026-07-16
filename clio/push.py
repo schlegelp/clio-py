@@ -156,7 +156,7 @@ def set_annotations(
                     and should hence not be overwritten.
                   - `protect=True`: no data in Clio will be overwritten, i.e.
                     only new data will be added
-                  - `protect=False`:  all fields will be overwritten with new data
+                  - `protect=False`: all fields will be overwritten with new data
                     for each non-empty value in x. If `write_empty_fields=True`
                     even empty fields in x will overwrite fields in the database.
     validate :  bool
@@ -226,9 +226,13 @@ def set_annotations(
     # See if we need to protect any fields
     if protect is not False:
         existing = fetch_annotations(x.bodyid.values.tolist(), client=client)
-        existing = existing.set_index("bodyid").to_dict(orient="index")
-        # Turn into this format: {bodyId: ['user', 'type', ...]} for existing
-        # fields
+
+        if not existing.empty:
+            existing = existing.set_index("bodyid").to_dict(orient="index")
+        else:
+            existing = {}
+
+        # Turn into this format: {bodyId: ['user', 'type', ...]} for existing fields
         existing = {k: list(v) for k, v in existing.items()}
 
         # Remove any field that already has a value
