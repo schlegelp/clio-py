@@ -35,9 +35,9 @@ import ujson
 logger = logging.getLogger(__name__)
 DEFAULT_CLIO_CLIENT = None
 CLIO_CLIENTS = {}
-CLIO_TOKEN_FILE = '~/clio_token.json'
-CLIO_TOKEN_URL = 'https://clio-store-vwzoicitea-uk.a.run.app/v2/server/token'
-CLIO_TEST_STORE = 'https://clio-test-7fdj77ed7q-uk.a.run.app'
+CLIO_TOKEN_FILE = "~/clio_token.json"
+CLIO_TOKEN_URL = "https://clio-store-vwzoicitea-uk.a.run.app/v2/server/token"
+CLIO_TEST_STORE = "https://clio-test-7fdj77ed7q-uk.a.run.app"
 
 
 def default_client():
@@ -61,8 +61,9 @@ def default_client():
     except KeyError:
         if DEFAULT_CLIO_CLIENT is None:
             raise RuntimeError(
-                    "No default Client has been set yet. "
-                    "Please create a Client object to serve as the default")
+                "No default Client has been set yet. "
+                "Please create a Client object to serve as the default"
+            )
 
         c = copy.deepcopy(DEFAULT_CLIO_CLIENT)
         CLIO_CLIENTS[(thread_id, pid)] = c
@@ -104,8 +105,9 @@ def inject_client(f):
     passes the default (global) Client.
     """
     argspec = inspect.getfullargspec(f)
-    assert 'client' in argspec.kwonlyargs, \
+    assert "client" in argspec.kwonlyargs, (
         f"Cannot wrap {f.__name__}: clio API wrappers must accept 'client' as a keyword-only argument."
+    )
 
     @functools.wraps(f)
     def wrapper(*args, client=None, **kwargs):
@@ -131,21 +133,22 @@ def set_token(token):
         raise TypeError(f'Token must be string, got "{type(token)}"')
 
     p = Path(CLIO_TOKEN_FILE).expanduser()
-    with open(p, 'w') as f:
-        json.dump({'token': token}, f)
+    with open(p, "w") as f:
+        json.dump({"token": token}, f)
 
 
 def load_token():
     """Load Clio token from file."""
     p = Path(CLIO_TOKEN_FILE).expanduser()
     if not p.is_file():
-        raise FileNotFoundError('Clio secret file not found. Please use '
-                                '`clio.set_token` to save a token.')
+        raise FileNotFoundError(
+            "Clio secret file not found. Please use `clio.set_token` to save a token."
+        )
 
-    with open(p, 'r') as f:
+    with open(p, "r") as f:
         token = json.load(f)
 
-    return token['token']
+    return token["token"]
 
 
 def get_token_glcoud(google_identify_token=None, save=True):
@@ -159,12 +162,15 @@ def get_token_glcoud(google_identify_token=None, save=True):
 
     # If still no token
     if not google_identify_token:
-        raise ValueError('Unable to automatically refresh Clio token. Make '
-                         'sure `gcloud` is installed and properly configured.')
+        raise ValueError(
+            "Unable to automatically refresh Clio token. Make "
+            "sure `gcloud` is installed and properly configured."
+        )
 
     # Fetch a new Clio token
-    r = requests.post(CLIO_TOKEN_URL,
-                      headers={'Authorization': f'Bearer {google_identify_token}'})
+    r = requests.post(
+        CLIO_TOKEN_URL, headers={"Authorization": f"Bearer {google_identify_token}"}
+    )
     if r.status_code != 200:
         raise ValueError(f"Unable to retrieve long-lived Clio token: {r.text}")
 
@@ -177,8 +183,13 @@ def get_token_glcoud(google_identify_token=None, save=True):
 
 
 class Client:
-    def __init__(self, server='https://clio-store-vwzoicitea-uk.a.run.app',
-                 dataset=None, token=None, verify=True):
+    def __init__(
+        self,
+        server="https://clio-store-vwzoicitea-uk.a.run.app",
+        dataset=None,
+        token=None,
+        verify=True,
+    ):
         """
         Client constructor.
 
@@ -215,36 +226,42 @@ class Client:
                 raise
 
         # Some token clean-up
-        if ':' in token:
+        if ":" in token:
             try:
-                token = ujson.loads(token)['token']
+                token = ujson.loads(token)["token"]
             except Exception:
-                raise RuntimeError("Did not understand token. Please provide the entire JSON document or (only) the complete token string")
+                raise RuntimeError(
+                    "Did not understand token. Please provide the entire JSON document or (only) the complete token string"
+                )
 
         # Don't set token directly since that triggers a validation
-        self.token = token.replace('"', '')
+        self.token = token.replace('"', "")
 
-        if '://' not in server:
-            server = 'https://' + server
-        elif server.startswith('http://'):
+        if "://" not in server:
+            server = "https://" + server
+        elif server.startswith("http://"):
             raise RuntimeError("Server must be https, not http")
-        elif not server.startswith('https://'):
-            protocol = server.split('://')[0]
+        elif not server.startswith("https://"):
+            protocol = server.split("://")[0]
             raise RuntimeError(f"Unknown protocol: {protocol}")
 
         # Remove trailing backslash
-        while server.endswith('/'):
+        while server.endswith("/"):
             server = server[:-1]
 
         self.server = server
 
         self.session = Session()
-        self.session.headers.update({"Authorization": "Bearer " + self.token,
-                                     "Content-type": "application/json"})
+        self.session.headers.update(
+            {
+                "Authorization": "Bearer " + self.token,
+                "Content-type": "application/json",
+            }
+        )
 
         # If the connection fails, retry a couple times.
         retries = Retry(connect=2, backoff_factor=0.1)
-        self.session.mount('https://', HTTPAdapter(max_retries=retries))
+        self.session.mount("https://", HTTPAdapter(max_retries=retries))
 
         self.verify = verify
         if not verify:
@@ -260,11 +277,15 @@ class Client:
         elif dataset in all_datasets:
             self.dataset = dataset
         elif dataset is None:
-            raise RuntimeError(f"Please specify a dataset from the following list: {all_datasets}")
+            raise RuntimeError(
+                f"Please specify a dataset from the following list: {all_datasets}"
+            )
         else:
-            raise RuntimeError(f"Dataset '{dataset}' does not exist on"
-                               f" the clio server ({self.server}).\n"
-                               f"Available datasets: {all_datasets}")
+            raise RuntimeError(
+                f"Dataset '{dataset}' does not exist on"
+                f" the clio server ({self.server}).\n"
+                f"Available datasets: {all_datasets}"
+            )
 
         # Set this as the default client if there isn't one already
         global DEFAULT_CLIO_CLIENT
@@ -291,28 +312,32 @@ class Client:
         self._token = token
 
         # Update session header
-        if hasattr(self, 'session'):
-            self.session.headers['Authorization'] = "Bearer " + self._token
+        if hasattr(self, "session"):
+            self.session.headers["Authorization"] = "Bearer " + self._token
 
     @property
     def head_version(self):
         """Head version."""
-        if not getattr(self, '_head_version', None):
-            self._head_version = self._fetch_json(f"{self.server}/v2/json-annotations/{self.dataset}/neurons/head_tag")
+        if not getattr(self, "_head_version", None):
+            self._head_version = self._fetch_json(
+                f"{self.server}/v2/json-annotations/{self.dataset}/neurons/head_tag"
+            )
         return self._head_version
 
     @property
     def head_uuid(self):
         """Head node UUID."""
-        if not getattr(self, '_head_uuid', None):
-            self._head_uuid =  self._fetch_json(f"{self.server}/v2/json-annotations/{self.dataset}/neurons/head_uuid")
+        if not getattr(self, "_head_uuid", None):
+            self._head_uuid = self._fetch_json(
+                f"{self.server}/v2/json-annotations/{self.dataset}/neurons/head_uuid"
+            )
         return self._head_uuid
 
     @property
     def meta(self):
         """Meta data for this dataset."""
-        if not getattr(self, '_meta', None):
-            self._meta =  self._fetch_json(f"{self.server}/v2/datasets")[self.dataset]
+        if not getattr(self, "_meta", None):
+            self._meta = self._fetch_json(f"{self.server}/v2/datasets")[self.dataset]
         return self._meta
 
     def _add_identifier(self, url):
@@ -320,8 +345,8 @@ class Client:
         url_parts = list(urlparse.urlparse(url))
         query = dict(urlparse.parse_qsl(url_parts[4]))
 
-        if 'app' not in query:
-            query.update({'app': 'clio-py'})
+        if "app" not in query:
+            query.update({"app": "clio-py"})
 
         url_parts[4] = urlencode(query)
 
@@ -336,24 +361,25 @@ class Client:
             url = CLIO_TEST_STORE
         for arg in args:
             arg_str = str(arg)
-            joiner = '' if url.endswith('/') else '/'
-            relative = arg_str[1:] if arg_str.startswith('/') else arg_str
+            joiner = "" if url.endswith("/") else "/"
+            relative = arg_str[1:] if arg_str.startswith("/") else arg_str
             url = requests.compat.urljoin(url + joiner, relative)
         if GET:
-            url += '?{}'.format(urllib.parse.urlencode(GET))
+            url += "?{}".format(urllib.parse.urlencode(GET))
         return url
 
     def refresh_token(self, *args, **kwargs):
         """Try refreshing Clio token. Requires glcoud."""
         self.token = get_token_glcoud(*args, **kwargs)
-        print('Clio token successfully refreshed.')
+        print("Clio token successfully refreshed.")
 
     def token_time_left(self):
         """Time left before token expires [s]."""
-        decoded = jwt.decode(self.token, algorithms=['HS256'],
-                             options={"verify_signature": False})
+        decoded = jwt.decode(
+            self.token, algorithms=["HS256"], options={"verify_signature": False}
+        )
 
-        return int(decoded['exp']) - int(time.time())
+        return int(decoded["exp"]) - int(time.time())
 
     def _validate_token(self, token=None):
         """Check token."""
@@ -361,19 +387,22 @@ class Client:
             token = self.token
 
         try:
-            decoded = jwt.decode(token, algorithms=['HS256'],
-                                 options={"verify_signature": False})
+            decoded = jwt.decode(
+                token, algorithms=["HS256"], options={"verify_signature": False}
+            )
         except jwt.DecodeError:
             raise ValueError("Clio token not valid: unable to decode.")
 
-        for field in ['email', 'exp']:
+        for field in ["email", "exp"]:
             if field not in decoded:
-                raise ValueError(f"Clio token doesn't have {field} field and "
-                                 f"is therefore invalid: {decoded}")
+                raise ValueError(
+                    f"Clio token doesn't have {field} field and "
+                    f"is therefore invalid: {decoded}"
+                )
 
     def _fetch(self, url, json=None, ispost=False, identify=True):
         if self.token_time_left() < 0:
-            print('Clio token expired. Attempting refresh...')
+            print("Clio token expired. Attempting refresh...")
             self.refresh_token()
 
         # Make sure URL has identifier
@@ -425,24 +454,36 @@ class Client:
     ##
     @lru_cache
     def fetch_fields(self):
-        return self._fetch_json(f"{self.server}/v2/json-annotations/{self.dataset}/neurons/fields")
+        return self._fetch_json(
+            f"{self.server}/v2/json-annotations/{self.dataset}/neurons/fields"
+        )
 
     @lru_cache
     def fetch_versions(self):
-        return self._fetch_json(f"{self.server}/v2/json-annotations/{self.dataset}/neurons/versions")
+        return self._fetch_json(
+            f"{self.server}/v2/json-annotations/{self.dataset}/neurons/versions"
+        )
 
     @lru_cache
     def fetch_head_tag(self):
-        return self._fetch_json(f"{self.server}/v2/json-annotations/{self.dataset}/neurons/head_tag")
+        return self._fetch_json(
+            f"{self.server}/v2/json-annotations/{self.dataset}/neurons/head_tag"
+        )
 
     @lru_cache
     def fetch_head_uuid(self):
-        return self._fetch_json(f"{self.server}/v2/json-annotations/{self.dataset}/neurons/head_uuid")
+        return self._fetch_json(
+            f"{self.server}/v2/json-annotations/{self.dataset}/neurons/head_uuid"
+        )
 
     @lru_cache
     def tag_to_uuid(self, tag):
-        return self._fetch_json(f"{self.server}/v2/json-annotations/{self.dataset}/neurons/tag_to_uuid/{tag}")
+        return self._fetch_json(
+            f"{self.server}/v2/json-annotations/{self.dataset}/neurons/tag_to_uuid/{tag}"
+        )
 
     @lru_cache
     def uuid_to_tag(self, uuid):
-        return self._fetch_json(f"{self.server}/v2/json-annotations/{self.dataset}/neurons/uuid_to_tag/{uuid}")
+        return self._fetch_json(
+            f"{self.server}/v2/json-annotations/{self.dataset}/neurons/uuid_to_tag/{uuid}"
+        )

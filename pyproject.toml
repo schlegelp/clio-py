@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clio-py"
+description = "Python client utilities for interacting with the Clio platform"
+readme = "README.md"
+authors = [{ name = "Philipp Schlegel", email = "pms70@cam.ac.uk" }]
+requires-python = ">=3.9"
+keywords = ["clio"]
+classifiers = [
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dynamic = ["version", "dependencies"]
+
+[project.urls]
+Homepage = "https://github.com/schlegelp/clio-py"
+Repository = "https://github.com/schlegelp/clio-py"
+
+[tool.setuptools]
+packages = ["clio"]
+
+[tool.setuptools.dynamic]
+version = { attr = "clio.__version__.__version__" }
+dependencies = { file = ["requirements.txt"] }
