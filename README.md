@@ -6,40 +6,48 @@ $ pip3 install git+https://github.com/schlegelp/clio-py@main
 ```
 
 ## Token
-To access Clio programmatically you need an API token. Currently, Clio tokens
-expire after a week. You have three options to get and set your token
-(in increasing order of convenience):
+To access Clio programmatically you need an API token. You can get and set
+your token in a few ways — the first is recommended and requires no extra
+dependencies.
 
-### Option 1
-Get your token from the Clio website (go to settings in the top right and copy
-the "ClioStore Token") and provide it whenever you instantiate a client:
+### Option 1 (recommended): `clio.login()`
+Run `clio.login()`. This opens the Clio settings page in your browser so you can
+copy your token (the "ClioStore Token"), then prompts you to paste it. The token
+is saved to disk, so this is a one-off until it expires:
+
+```Python
+>>> import clio
+>>> clio.login()  # opens the browser and prompts you to paste your token
+>>> client = clio.Client(dataset='VNC')
+```
+
+### Option 2: pass or save the token yourself
+Get your token from the Clio website (settings in the top right → "ClioStore
+Token") and either pass it directly:
 
 ```Python
 >>> import clio
 >>> client = clio.Client(dataset='VNC', token="eyJhb.....")
 ```
 
-### Option 2
-Get your token from the Clio website and save it to disk. `clio-py` will
-automatically use it when available and inform you when the token has expired
-and you need to get a new one:
+...or save it to disk once so it's picked up automatically:
 
 ```Python
 >>> import clio
->>> clio.set_token("eyJhb.....")  # this is a one-off until token expires!
+>>> clio.set_token("eyJhb.....")  # one-off until the token expires
 >>> client = clio.Client(dataset='VNC')
 ```
 
-### Option 3
-Install [gcloud](https://cloud.google.com/sdk/docs/install) and link it with
-your Google account (must be the same you use for Clio).
-
-From now on, `clio-py` will use `gcloud` to auto-refresh your Clio token
-whenever it expires.
+### Option 3 (advanced): auto-refresh via `gcloud`
+If you have the [gcloud](https://cloud.google.com/sdk/docs/install) CLI
+installed and linked to the Google account you use for Clio, `clio-py` will use
+it to fetch and refresh your token automatically. This is convenient for
+long-running/automated use but installing `gcloud` is a heavy dependency most
+users won't need.
 
 ```Python
 >>> import clio
->>> client = clio.Client(dataset='VNC')
+>>> client = clio.Client(dataset='VNC')  # uses gcloud if a token isn't already saved
 ```
 
 ## Usage
